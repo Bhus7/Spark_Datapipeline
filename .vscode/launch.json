@@ -1,0 +1,37 @@
+{
+    "configurations": [
+        {
+            "name": "Python: Extract with args",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "extract/execute.py",
+            "console": "integratedTerminal",
+            "python": "../pyspark/venv/bin/python",
+            "args": ["/Users/mac/data/extract"]
+        },
+        {
+            "name": "Python: Transform with args",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tranform/execute.py",
+            "console": "integratedTerminal",
+            "python": "../pyspark/venv/bin/python",
+            "args": [
+                "/Users/mac/data/extract", 
+                "/Users/mac/data/transform" 
+            ]
+        },
+        {
+            "name": "Python: Load with args",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "load/execute.py",
+            "console": "integratedTerminal",
+            "python": "../pyspark/venv/bin/python",
+            "args": ["/Users/mac/data/transform", //input diretory
+            "postgres", //username
+            "postgres"//password
+        ]
+        }
+    ]
+}
