@@ -1,68 +1,46 @@
-import os, sys, requests, time
-from zipfile import ZipFile
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from utility.utility import setup_logging, format_time
+# quake/etl.py
 
-def download_zip_file(url, output_dir, logger):
-    response = requests.get(url, stream=True)
-    os.makedirs(output_dir, exist_ok=True)
-    
-    if response.status_code == 200:
-        filename = os.path.join(output_dir, "downloaded.zip")
-        with open(filename, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-        logger.info(f"Downloaded zip file: {filename}")
-        return filename
+import requests
+from datetime import datetime
+from pathlib import Path
+
+# folder where data will be saved (you already made it)
+raw_folder = Path("/Users/mac/Earthquake Data")
+
+# fixed query values
+starttime = "2024-01-01"
+endtime   = "2025-08-20"
+minmag    = "3"
+fmt       = "csv"   # can also be "geojson"
+
+# nepal bounding box
+use_bbox = True
+minlat, maxlat = "26", "31"
+minlon, maxlon = "80", "89"
+
+def extract():
+    raw_folder.mkdir(parents=True, exist_ok=True)
+
+    # build the url like your old code style (plain string concat)
+    url = f"https://earthquake.usgs.gov/fdsnws/event/1/query?format={fmt}&starttime={starttime}&endtime={endtime}&minmagnitude={minmag}"
+    if use_bbox:
+        url += f"&minlatitude={minlat}&maxlatitude={maxlat}&minlongitude={minlon}&maxlongitude={maxlon}"
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"usgs_{stamp}.{fmt if fmt=='csv' else 'json'}"
+    outpath = raw_folder / filename
+
+    print("[extract] downloading:", url)
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+
+    if fmt == "csv":
+        outpath.write_bytes(r.content)
     else:
-        logger.error(f"Failed to download file. Status code: {response.status_code}")
-        raise Exception(f"Failed to download file. Status code: {response.status_code}")
-    
-def extract_zip_file(zip_filename, output_dir, logger):
-    with ZipFile(zip_filename, 'r') as zip_file:
-        zip_file.extractall(output_dir)
-    logger.info(f"Extracted zip file to: {output_dir}")
-    logger.info("Removing the zip file")
-    os.remove(zip_filename)
+        outpath.write_text(r.text, encoding="utf-8")
 
-def fix_json_dict(output_dir, logger):
-    import json
-    file_path = os.path.join(output_dir, "dict_artists.json")
-    
-    with open(file_path, "r") as f:
-        data = json.load(f)
-
-    fixed_path = os.path.join(output_dir, "fixed_da.json")
-    with open(fixed_path, "w", encoding="utf-8") as f_out:
-        for key, value in data.items():
-            record = {"id": key, "related_ids": value}
-            json.dump(record, f_out, ensure_ascii=False)
-            f_out.write("\n")
-
-    logger.info(f"File {file_path} has been fixed and written to {fixed_path}")
-    logger.info("Removing the original file")
-    os.remove(file_path)
+    print("[extract] saved to:", outpath)
+    return outpath
 
 if __name__ == "__main__":
-
-    logger = setup_logging("extract.log")
-    if len(sys.argv) < 2:
-        logger.debug("Extraction path is required")
-        logger.debug("Example usage:")
-        logger.debug("python3 execute.py /Users/najibthapa1/Data/Extraction")
-    else:
-        try:
-            logger.debug("Starting Extraction Engine...")
-            start = time.time()
-            EXTRACT_PATH = sys.argv[1]
-            # KAGGLE_URL = "https://www.kaggle.com/datasets/yamaerenay/spotify-dataset-19212020-600k-tracks?resource=download"
-            # zip_file = download_zip_file(KAGGLE_URL, EXTRACT_PATH, logger)
-            zip_file = os.path.join(EXTRACT_PATH, "archive.zip")
-            extract_zip_file(zip_file, EXTRACT_PATH, logger)
-            fix_json_dict(EXTRACT_PATH, logger)
-            end = time.time()
-            logger.info("Extraction Successfully Completed!")
-
-        except Exception as e:
-            logger.error(f"Error: {e}")
+    extract()
